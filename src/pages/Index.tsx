@@ -142,7 +142,7 @@ const Index = () => {
                   width={400}
                   height={550}
                 />
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20 bg-card border border-border px-8 py-3 rounded-md shadow-lg">
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20 bg-card border border-border px-5 py-3 rounded-md shadow-lg">
                   <div className="w-12 h-px bg-accent mx-auto mb-2" />
                   <p className="text-center font-semibold" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.1rem' }}>
                     Dr. Marcio Silva
