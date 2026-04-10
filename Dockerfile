@@ -1,14 +1,12 @@
 # BUILD
-FROM node:18-alpine AS build
+FROM oven/bun:1.1.0 AS build
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
-
 COPY . .
 
-RUN npm run build
+RUN bun install
+RUN bun run build
 
 # SERVE
 FROM nginx:alpine

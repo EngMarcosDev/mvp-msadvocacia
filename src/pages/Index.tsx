@@ -443,12 +443,6 @@ const Index = () => {
             <h2 className="text-2xl md:text-3xl font-bold leading-tight">
               O que nossos clientes dizem
             </h2>
-            <div className="mt-4 inline-flex items-center rounded-full border border-border bg-secondary px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Prévia ilustrativa até integrar o Google
-            </div>
-            <p className="text-muted-foreground mt-3 text-sm">
-              Avaliações reais do Google Meu Negócio
-            </p>
           </div>
           <div id="google-reviews" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {MOCK_GOOGLE_REVIEWS.map((review, i) => (
