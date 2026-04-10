@@ -465,9 +465,6 @@ const Index = () => {
               </div>
             ))}
           </div>
-          <p className="text-center text-xs text-muted-foreground/60 mt-6">
-            Estas avaliações são ilustrativas. Conecte a API do Google Places para exibir avaliações reais.
-          </p>
         </div>
       </section>
 
