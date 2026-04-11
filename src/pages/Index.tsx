@@ -331,7 +331,7 @@ const Index = () => {
                 oportunidade real de justiça.
               </p>
               <p className="text-muted-foreground leading-relaxed text-sm mb-8">
-                Com estratégia sólida e conhecimento profundo do sistema penal,
+                Com estratégia sólida e conhecimento profundo do ordenamento jurídico,
                 lutamos para que cada cliente tenha seus direitos plenamente
                 respeitados em todas as instâncias.
               </p>
