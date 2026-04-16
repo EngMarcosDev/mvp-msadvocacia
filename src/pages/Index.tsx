@@ -212,12 +212,13 @@ const ReviewsSection = () => {
         {/* Carrossel */}
         {!loading && (
           <div id="google-reviews" className="overflow-hidden" ref={emblaRef}>
-            <div className="flex gap-5">
+            <div className="flex -ml-4">
               {displayReviews.map((review, i) => (
                 <div
                   key={i}
-                  className="flex-none w-[85vw] sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)] bg-card border border-border rounded-xl p-6 flex flex-col"
+                  className="pl-4 flex-none w-[88vw] sm:w-1/2 lg:w-1/3 min-w-0"
                 >
+                <div className="bg-card border border-border rounded-xl p-6 flex flex-col h-full">
                   {/* Topo: autor + Google icon */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -250,6 +251,7 @@ const ReviewsSection = () => {
                   <p className="text-sm text-muted-foreground leading-relaxed mt-3 italic flex-1">
                     "{review.text.length > 220 ? review.text.slice(0, 220) + "…" : review.text}"
                   </p>
+                </div>
                 </div>
               ))}
             </div>
@@ -350,21 +352,23 @@ const AreasSection = () => {
         {/* MOBILE: slider Embla */}
         <div className="sm:hidden">
           <div className="overflow-hidden" ref={areasEmblaRef}>
-            <div className="flex gap-4">
+            <div className="flex -ml-4">
               {AREAS.map((area) => (
                 <div
                   key={area.title}
-                  className="flex-none w-[72vw] bg-primary-foreground/5 border border-primary-foreground/10 rounded-xl p-6 group"
+                  className="pl-4 flex-none w-[78vw] min-w-0"
                 >
-                  <div className="w-12 h-12 rounded-lg bg-primary-foreground/10 flex items-center justify-center mb-4">
-                    <area.icon className="w-5 h-5 text-accent" />
+                  <div className="bg-primary-foreground/5 border border-primary-foreground/10 rounded-xl p-6 h-full">
+                    <div className="w-12 h-12 rounded-lg bg-primary-foreground/10 flex items-center justify-center mb-4">
+                      <area.icon className="w-5 h-5 text-accent" />
+                    </div>
+                    <h3
+                      className="text-base font-semibold leading-snug"
+                      style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}
+                    >
+                      {area.title}
+                    </h3>
                   </div>
-                  <h3
-                    className="text-base font-semibold leading-snug"
-                    style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}
-                  >
-                    {area.title}
-                  </h3>
                 </div>
               ))}
             </div>
