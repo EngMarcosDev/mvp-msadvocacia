@@ -1,5 +1,6 @@
-import { forwardRef, type SVGProps } from "react";
-import { BookOpen, Mail, MapPin, Clock, Shield, Users, ChevronRight, Gavel, FileText, AlertTriangle, Briefcase, Scale, UserCheck, Building, Siren, GraduationCap, Award, BadgeCheck, Star, ExternalLink } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useRef, useState, type SVGProps } from "react";
+import { BookOpen, Mail, MapPin, Clock, Shield, Users, ChevronRight, Gavel, FileText, AlertTriangle, Briefcase, Scale, UserCheck, Building, Siren, GraduationCap, Award, BadgeCheck, Star, ExternalLink, ChevronLeft } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
 import { useGoogleReviews } from "@/hooks/useGoogleReviews";
 
 import logoTransparente from "@/assets/logo-transparente.png";
@@ -80,115 +81,350 @@ const StarRating = ({ rating, size = "sm" }: { rating: number; size?: "sm" | "md
   );
 };
 
+/* ── Google SVG Icon ── */
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" aria-hidden>
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+  </svg>
+);
+
+/* ── Reviews Carousel ── */
 const ReviewsSection = () => {
   const { reviews, rating, totalRatings, loading, error } = useGoogleReviews();
   const hasApiReviews = !loading && !error && reviews.length > 0;
-  const showMock = !hasApiReviews;
+
+  const displayReviews = hasApiReviews
+    ? reviews
+    : MOCK_GOOGLE_REVIEWS.map((r) => ({
+        author_name: r.nome,
+        rating: r.estrelas,
+        text: r.texto,
+        time: 0,
+        profile_photo_url: undefined,
+        relative_time_description: undefined,
+      }));
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start" });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
+  const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  const scrollTo = useCallback(
+    (index: number) => emblaApi && emblaApi.scrollTo(index),
+    [emblaApi]
+  );
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+
+  const startAutoplay = useCallback(() => {
+    if (autoplayRef.current) clearInterval(autoplayRef.current);
+    autoplayRef.current = setInterval(() => {
+      if (emblaApi) emblaApi.scrollNext();
+    }, 5000);
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    setScrollSnaps(emblaApi.scrollSnapList());
+    emblaApi.on("select", onSelect);
+    emblaApi.on("pointerDown", () => {
+      if (autoplayRef.current) clearInterval(autoplayRef.current);
+    });
+    emblaApi.on("pointerUp", startAutoplay);
+    startAutoplay();
+    return () => {
+      if (autoplayRef.current) clearInterval(autoplayRef.current);
+    };
+  }, [emblaApi, onSelect, startAutoplay]);
 
   return (
-    <section className="py-16 bg-background">
+    <section className="py-20 bg-background overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-10">
-          <div className="w-12 h-px bg-accent mx-auto mb-6" />
-          <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-            O que nossos clientes dizem
-          </h2>
 
-          {/* Resumo de avaliação quando disponível */}
-          {rating && totalRatings && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <StarRating rating={rating} size="md" />
-              <span className="text-lg font-bold">{rating.toFixed(1)}</span>
-              <span className="text-sm text-muted-foreground">({totalRatings} avaliações no Google)</span>
-            </div>
-          )}
+        {/* Cabeçalho */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+          <div>
+            <div className="w-12 h-px bg-accent mb-5" />
+            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+              O que nossos clientes dizem
+            </h2>
+            {rating && totalRatings && (
+              <div className="flex items-center gap-2 mt-3">
+                <StarRating rating={rating} size="md" />
+                <span className="font-bold text-base">{rating.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">· {totalRatings} avaliações no Google</span>
+              </div>
+            )}
+          </div>
+
+          {/* Setas desktop */}
+          <div className="hidden md:flex items-center gap-2">
+            <button
+              onClick={scrollPrev}
+              className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={scrollNext}
+              className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+              aria-label="Próximo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Loading skeleton */}
         {loading && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-lg p-6 animate-pulse">
-                <div className="flex gap-1 mb-3">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <div key={j} className="w-4 h-4 rounded bg-muted" />
-                  ))}
+              <div key={i} className="bg-card border border-border rounded-xl p-6 animate-pulse">
+                <div className="flex gap-2 items-center mb-4">
+                  <div className="w-10 h-10 rounded-full bg-muted" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3 bg-muted rounded w-1/2" />
+                    <div className="h-2.5 bg-muted rounded w-1/3" />
+                  </div>
                 </div>
-                <div className="space-y-2 mb-4">
+                <div className="flex gap-1 mb-3">
+                  {Array.from({ length: 5 }).map((_, j) => <div key={j} className="w-4 h-4 rounded bg-muted" />)}
+                </div>
+                <div className="space-y-2">
                   <div className="h-3 bg-muted rounded w-full" />
                   <div className="h-3 bg-muted rounded w-5/6" />
                   <div className="h-3 bg-muted rounded w-4/6" />
                 </div>
-                <div className="h-3 bg-muted rounded w-1/3" />
               </div>
             ))}
           </div>
         )}
 
-        {/* Avaliações reais do Google */}
-        {hasApiReviews && (
-          <div id="google-reviews" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {reviews.map((review, i) => (
-              <div key={i} className="bg-card border border-border rounded-lg p-6 flex flex-col">
-                <div className="flex items-center gap-3 mb-3">
-                  {review.profile_photo_url ? (
-                    <img
-                      src={review.profile_photo_url}
-                      alt={review.author_name}
-                      className="w-9 h-9 rounded-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground">
-                      {review.author_name.charAt(0).toUpperCase()}
+        {/* Carrossel */}
+        {!loading && (
+          <div id="google-reviews" className="overflow-hidden" ref={emblaRef}>
+            <div className="flex gap-5">
+              {displayReviews.map((review, i) => (
+                <div
+                  key={i}
+                  className="flex-none w-[85vw] sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)] bg-card border border-border rounded-xl p-6 flex flex-col"
+                >
+                  {/* Topo: autor + Google icon */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      {review.profile_photo_url ? (
+                        <img
+                          src={review.profile_photo_url}
+                          alt={review.author_name}
+                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-sm font-bold text-accent flex-shrink-0">
+                          {review.author_name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold leading-tight">{review.author_name}</p>
+                        {review.relative_time_description && (
+                          <p className="text-[0.65rem] text-muted-foreground mt-0.5">{review.relative_time_description}</p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <p className="text-xs font-semibold leading-tight">{review.author_name}</p>
-                    {review.relative_time_description && (
-                      <p className="text-[0.65rem] text-muted-foreground">{review.relative_time_description}</p>
-                    )}
+                    <GoogleIcon />
                   </div>
+
+                  {/* Estrelas */}
+                  <StarRating rating={review.rating} />
+
+                  {/* Texto */}
+                  <p className="text-sm text-muted-foreground leading-relaxed mt-3 italic flex-1">
+                    "{review.text.length > 220 ? review.text.slice(0, 220) + "…" : review.text}"
+                  </p>
                 </div>
-                <StarRating rating={review.rating} />
-                <p className="text-sm text-muted-foreground leading-relaxed mt-3 italic flex-1">
-                  "{review.text.length > 200 ? review.text.slice(0, 200) + "…" : review.text}"
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Fallback: dados mock quando API não está configurada */}
-        {showMock && !loading && (
-          <div id="google-reviews" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {MOCK_GOOGLE_REVIEWS.map((review, i) => (
-              <div key={i} className="bg-card border border-border rounded-lg p-6">
-                <div className="flex gap-1 mb-3">
-                  {Array.from({ length: review.estrelas }).map((_, j) => (
-                    <Star key={j} className="w-4 h-4 fill-accent text-accent" />
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 italic">
-                  "{review.texto}"
-                </p>
-                <p className="text-xs font-semibold">{review.nome}</p>
-              </div>
-            ))}
+        {/* Dots + CTA */}
+        {!loading && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
+            {/* Dots */}
+            <div className="flex items-center gap-2">
+              {scrollSnaps.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => scrollTo(idx)}
+                  className={`rounded-full transition-all duration-300 ${
+                    idx === selectedIndex
+                      ? "w-6 h-2 bg-accent"
+                      : "w-2 h-2 bg-border hover:bg-muted-foreground"
+                  }`}
+                  aria-label={`Ir para slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Botão ver todas */}
+            <a
+              href={GOOGLE_REVIEWS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 border border-border text-sm font-medium px-5 py-2.5 rounded-md hover:bg-secondary transition-colors"
+            >
+              Ver todas no Google
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           </div>
         )}
+      </div>
+    </section>
+  );
+};
 
-        {/* Botão para ver todas as avaliações no Google */}
-        <div className="text-center mt-10">
-          <a
-            href={GOOGLE_REVIEWS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 border border-border text-sm font-medium px-6 py-3 rounded-md hover:bg-secondary transition-colors"
-          >
-            Ver todas as avaliações no Google
-            <ExternalLink className="w-4 h-4" />
-          </a>
+const AREAS = [
+  { title: "Acompanhamento em Delegacias", icon: Shield },
+  { title: "Audiências de Custódia", icon: Gavel },
+  { title: "Homicídios", icon: AlertTriangle },
+  { title: "Tráfico de Drogas", icon: Scale },
+  { title: "Crimes contra o Patrimônio", icon: Briefcase },
+  { title: "Lei Maria da Penha", icon: Users },
+  { title: "Crimes Sexuais", icon: Shield },
+  { title: "Recursos Criminais", icon: FileText },
+  { title: "Habeas Corpus", icon: BookOpen },
+];
+
+const AreasSection = () => {
+  const [areasEmblaRef, areasEmblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    breakpoints: { "(min-width: 640px)": { active: false } },
+  });
+  const [areasIndex, setAreasIndex] = useState(0);
+  const areasAutoRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const areasPrev = useCallback(() => areasEmblaApi && areasEmblaApi.scrollPrev(), [areasEmblaApi]);
+  const areasNext = useCallback(() => areasEmblaApi && areasEmblaApi.scrollNext(), [areasEmblaApi]);
+
+  useEffect(() => {
+    if (!areasEmblaApi) return;
+    areasEmblaApi.on("select", () => setAreasIndex(areasEmblaApi.selectedScrollSnap()));
+    areasAutoRef.current = setInterval(() => areasEmblaApi.scrollNext(), 3500);
+    areasEmblaApi.on("pointerDown", () => { if (areasAutoRef.current) clearInterval(areasAutoRef.current); });
+    areasEmblaApi.on("pointerUp", () => {
+      areasAutoRef.current = setInterval(() => areasEmblaApi.scrollNext(), 3500);
+    });
+    return () => { if (areasAutoRef.current) clearInterval(areasAutoRef.current); };
+  }, [areasEmblaApi]);
+
+  return (
+    <section id="areas" className="py-24 bg-primary text-primary-foreground overflow-hidden">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Cabeçalho */}
+        <div className="text-center mb-12">
+          <div className="w-12 h-px bg-accent mx-auto mb-6" />
+          <span className="text-xs uppercase tracking-[0.25em] text-primary-foreground/50 font-medium">
+            O que fazemos
+          </span>
+          <h2 className="text-3xl md:text-4xl font-bold leading-tight mt-3">
+            Atuação especializada em
+            <br />
+            Direito Criminal
+          </h2>
+          <p className="text-primary-foreground/60 max-w-2xl mx-auto mt-4 text-sm leading-relaxed">
+            Cobertura jurídica completa em todas as etapas do processo penal,
+            da investigação policial ao julgamento em plenário.
+          </p>
+        </div>
+
+        {/* MOBILE: slider Embla */}
+        <div className="sm:hidden">
+          <div className="overflow-hidden" ref={areasEmblaRef}>
+            <div className="flex gap-4">
+              {AREAS.map((area) => (
+                <div
+                  key={area.title}
+                  className="flex-none w-[72vw] bg-primary-foreground/5 border border-primary-foreground/10 rounded-xl p-6 group"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-primary-foreground/10 flex items-center justify-center mb-4">
+                    <area.icon className="w-5 h-5 text-accent" />
+                  </div>
+                  <h3
+                    className="text-base font-semibold leading-snug"
+                    style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}
+                  >
+                    {area.title}
+                  </h3>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Controles mobile */}
+          <div className="flex items-center justify-between mt-6 px-1">
+            {/* Dots */}
+            <div className="flex gap-1.5">
+              {AREAS.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => areasEmblaApi && areasEmblaApi.scrollTo(idx)}
+                  className={`rounded-full transition-all duration-300 ${
+                    idx === areasIndex
+                      ? "w-5 h-1.5 bg-accent"
+                      : "w-1.5 h-1.5 bg-primary-foreground/20"
+                  }`}
+                  aria-label={`Ir para ${AREAS[idx].title}`}
+                />
+              ))}
+            </div>
+            {/* Setas discretas */}
+            <div className="flex gap-2">
+              <button
+                onClick={areasPrev}
+                className="w-8 h-8 rounded-full border border-primary-foreground/20 flex items-center justify-center hover:border-accent hover:text-accent transition-colors"
+                aria-label="Anterior"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={areasNext}
+                className="w-8 h-8 rounded-full border border-primary-foreground/20 flex items-center justify-center hover:border-accent hover:text-accent transition-colors"
+                aria-label="Próximo"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* DESKTOP: grid */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {AREAS.map((area) => (
+            <div
+              key={area.title}
+              className="bg-primary-foreground/5 border border-primary-foreground/10 rounded-lg p-6 hover:bg-primary-foreground/10 transition-colors group"
+            >
+              <div className="w-12 h-12 rounded-lg bg-primary-foreground/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
+                <area.icon className="w-5 h-5 text-primary-foreground/70 group-hover:text-accent transition-colors" />
+              </div>
+              <h3
+                className="text-base font-semibold"
+                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem" }}
+              >
+                {area.title}
+              </h3>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -324,47 +560,7 @@ const Index = () => {
       </section>
 
       {/* ============ ÁREAS ============ */}
-      <section id="areas" className="py-24 bg-primary text-primary-foreground">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <div className="w-12 h-px bg-accent mx-auto mb-6" />
-            <span className="text-xs uppercase tracking-[0.25em] text-primary-foreground/50 font-medium">
-              O que fazemos
-            </span>
-            <h2 className="text-3xl md:text-4xl font-bold leading-tight mt-3">
-              Atuação especializada em
-              <br />
-              Direito Criminal
-            </h2>
-            <p className="text-primary-foreground/60 max-w-2xl mx-auto mt-4 text-sm leading-relaxed">
-              Cobertura jurídica completa em todas as etapas do processo penal,
-              da investigação policial ao julgamento em plenário.
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[
-              { title: "Acompanhamento em Delegacias", icon: Shield },
-              { title: "Audiências de Custódia", icon: Gavel },
-              { title: "Homicídios", icon: AlertTriangle },
-              { title: "Tráfico de Drogas", icon: Scale },
-              { title: "Crimes contra o Patrimônio", icon: Briefcase },
-              { title: "Lei Maria da Penha", icon: Users },
-              { title: "Crimes Sexuais", icon: Shield },
-              { title: "Recursos Criminais", icon: FileText },
-              { title: "Habeas Corpus", icon: BookOpen },
-            ].map((area) => (
-              <div key={area.title} className="bg-primary-foreground/5 border border-primary-foreground/10 rounded-lg p-6 hover:bg-primary-foreground/10 transition-colors group">
-                <div className="w-12 h-12 rounded-lg bg-primary-foreground/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
-                  <area.icon className="w-5 h-5 text-primary-foreground/70 group-hover:text-accent transition-colors" />
-                </div>
-                <h3 className="text-base font-semibold" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.05rem' }}>
-                  {area.title}
-                </h3>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <AreasSection />
 
       {/* ============ ATENDIMENTO IMEDIATO ============ */}
       <section className="py-24 bg-background">
