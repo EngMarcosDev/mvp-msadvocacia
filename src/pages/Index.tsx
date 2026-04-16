@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useEffect, useRef, useState, type SVGProps } from "react";
 import { BookOpen, Mail, MapPin, Clock, Shield, Users, ChevronRight, Gavel, FileText, AlertTriangle, Briefcase, Scale, UserCheck, Building, Siren, GraduationCap, Award, BadgeCheck, Star, ExternalLink, ChevronLeft } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
-import { useGoogleReviews } from "@/hooks/useGoogleReviews";
 
 import logoTransparente from "@/assets/logo-transparente.png";
 import marcioImg from "@/assets/marcio.jpeg";
@@ -23,23 +22,34 @@ const buildWhatsAppLink = (message: string) => {
 
 const WHATSAPP_LINK = buildWhatsAppLink(WHATSAPP_MESSAGE);
 
-const MOCK_GOOGLE_REVIEWS = [
+// ─── AVALIAÇÕES REAIS (atualize aqui quando chegar novo comentário) ───────────
+const REAL_REVIEWS = [
   {
-    nome: "Cliente satisfeito",
-    texto: "Profissional competente e dedicado. Resolveu meu caso com agilidade e transparência.",
-    estrelas: 5,
+    author_name: "Anônimo",
+    rating: 5,
+    text: "Ótimo profissional de grande competência deus abençoe",
+    relative_time_description: "recentemente",
+    profile_photo_url: undefined as string | undefined,
+    time: 3,
   },
   {
-    nome: "Excelente atendimento",
-    texto: "Desde o primeiro contato fui muito bem atendido. Recomendo a todos que precisam de um advogado criminal.",
-    estrelas: 5,
+    author_name: "Anônimo",
+    rating: 5,
+    text: "Um excelente advogado super recomendo top",
+    relative_time_description: "recentemente",
+    profile_photo_url: undefined as string | undefined,
+    time: 2,
   },
   {
-    nome: "Recomendo",
-    texto: "Dr. Marcio é um profissional sério e comprometido. Me deu toda a segurança que eu precisava.",
-    estrelas: 5,
+    author_name: "Anônimo",
+    rating: 5,
+    text: "Escritório com profissionais altamente qualificados.",
+    relative_time_description: "recentemente",
+    profile_photo_url: undefined as string | undefined,
+    time: 1,
   },
 ];
+// ─────────────────────────────────────────────────────────────────────────────
 
 const GOOGLE_PLACE_ID = import.meta.env.VITE_GOOGLE_PLACE_ID as string | undefined;
 const GOOGLE_REVIEWS_URL = GOOGLE_PLACE_ID
@@ -91,193 +101,169 @@ const GoogleIcon = () => (
   </svg>
 );
 
-/* ── Reviews Carousel ── */
+/* ── Reviews Fade Carousel ── */
 const ReviewsSection = () => {
-  const { reviews, rating, totalRatings, loading, error } = useGoogleReviews();
-  const hasApiReviews = !loading && !error && reviews.length > 0;
+  // Usa REAL_REVIEWS diretamente — sem API, sem custo
+  const reviews     = REAL_REVIEWS;
+  const rating      = 5;
+  const totalRatings = REAL_REVIEWS.length;
+  const loading     = false;
 
-  const displayReviews = hasApiReviews
-    ? reviews
-    : MOCK_GOOGLE_REVIEWS.map((r) => ({
-        author_name: r.nome,
-        rating: r.estrelas,
-        text: r.texto,
-        time: 0,
-        profile_photo_url: undefined,
-        relative_time_description: undefined,
-      }));
+  const total = reviews.length;
+  const [current, setCurrent] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start" });
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
-  const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const goTo = useCallback((next: number) => {
+    setVisible(false);
+    setTimeout(() => { setCurrent(next); setVisible(true); }, 350);
+  }, []);
 
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-  }, [emblaApi]);
+  const goPrev = useCallback(() => goTo((current - 1 + total) % total), [current, total, goTo]);
+  const goNext = useCallback(() => goTo((current + 1) % total), [current, total, goTo]);
 
-  const scrollTo = useCallback(
-    (index: number) => emblaApi && emblaApi.scrollTo(index),
-    [emblaApi]
-  );
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
-
-  const startAutoplay = useCallback(() => {
-    if (autoplayRef.current) clearInterval(autoplayRef.current);
-    autoplayRef.current = setInterval(() => {
-      if (emblaApi) emblaApi.scrollNext();
-    }, 5000);
-  }, [emblaApi]);
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (total <= 1) return;
+    timerRef.current = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => { setCurrent((p) => (p + 1) % total); setVisible(true); }, 350);
+    }, 6000);
+  }, [total]);
 
   useEffect(() => {
-    if (!emblaApi) return;
-    setScrollSnaps(emblaApi.scrollSnapList());
-    emblaApi.on("select", onSelect);
-    emblaApi.on("pointerDown", () => {
-      if (autoplayRef.current) clearInterval(autoplayRef.current);
-    });
-    emblaApi.on("pointerUp", startAutoplay);
-    startAutoplay();
-    return () => {
-      if (autoplayRef.current) clearInterval(autoplayRef.current);
-    };
-  }, [emblaApi, onSelect, startAutoplay]);
+    resetTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [resetTimer]);
+
+  const review = reviews[current];
 
   return (
-    <section className="py-20 bg-background overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6">
+    <section className="py-20 bg-background">
+      <div className="max-w-2xl mx-auto px-6">
 
         {/* Cabeçalho */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
-          <div>
-            <div className="w-12 h-px bg-accent mb-5" />
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-              O que nossos clientes dizem
-            </h2>
-            {rating && totalRatings && (
-              <div className="flex items-center gap-2 mt-3">
-                <StarRating rating={rating} size="md" />
-                <span className="font-bold text-base">{rating.toFixed(1)}</span>
-                <span className="text-xs text-muted-foreground">· {totalRatings} avaliações no Google</span>
+        <div className="text-center mb-10">
+          <div className="w-12 h-px bg-accent mx-auto mb-5" />
+          <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+            O que nossos clientes dizem
+          </h2>
+          {rating != null && totalRatings != null && (
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <StarRating rating={rating} size="md" />
+              <span className="font-bold text-base">{rating.toFixed(1)}</span>
+              <span className="text-xs text-muted-foreground">· {totalRatings} avaliações no Google</span>
+            </div>
+          )}
+        </div>
+
+        {/* Skeleton enquanto carrega */}
+        {loading && (
+          <div className="bg-card border border-border rounded-xl p-8 animate-pulse">
+            <div className="flex gap-3 items-center mb-5">
+              <div className="w-12 h-12 rounded-full bg-muted flex-shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-3 bg-muted rounded w-1/3" />
+                <div className="h-2.5 bg-muted rounded w-1/4" />
+              </div>
+            </div>
+            <div className="flex gap-1 mb-4">
+              {Array.from({ length: 5 }).map((_, j) => <div key={j} className="w-4 h-4 rounded bg-muted" />)}
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-muted rounded w-full" />
+              <div className="h-3 bg-muted rounded w-5/6" />
+              <div className="h-3 bg-muted rounded w-3/4" />
+            </div>
+          </div>
+        )}
+
+        {/* Reviews reais com fade */}
+        {!loading && total > 0 && review && (
+          <div id="google-reviews">
+            <div
+              style={{ opacity: visible ? 1 : 0, transition: "opacity 0.35s ease" }}
+              className="bg-card border border-border rounded-xl p-8"
+            >
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  {review.profile_photo_url ? (
+                    <img
+                      src={review.profile_photo_url}
+                      alt={review.author_name}
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-base font-bold text-accent flex-shrink-0">
+                      {review.author_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold leading-tight">{review.author_name}</p>
+                    {review.relative_time_description && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{review.relative_time_description}</p>
+                    )}
+                  </div>
+                </div>
+                <GoogleIcon />
+              </div>
+              <StarRating rating={review.rating} size="md" />
+              <p className="text-base text-muted-foreground leading-relaxed mt-4 italic">
+                "{review.text.length > 320 ? review.text.slice(0, 320) + "…" : review.text}"
+              </p>
+            </div>
+
+            {/* Controles — só se houver mais de 1 */}
+            {total > 1 && (
+              <div className="flex items-center justify-between mt-6">
+                <button onClick={() => { goPrev(); resetTimer(); }}
+                  className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+                  aria-label="Anterior">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-2">
+                  {reviews.map((_, idx) => (
+                    <button key={idx} onClick={() => { goTo(idx); resetTimer(); }}
+                      className={`rounded-full transition-all duration-300 ${idx === current ? "w-6 h-2 bg-accent" : "w-2 h-2 bg-border hover:bg-muted-foreground"}`}
+                      aria-label={`Avaliação ${idx + 1}`} />
+                  ))}
+                </div>
+                <button onClick={() => { goNext(); resetTimer(); }}
+                  className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+                  aria-label="Próximo">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
+        )}
 
-          {/* Setas desktop */}
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              onClick={scrollPrev}
-              className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-              aria-label="Anterior"
+        {/* Fallback quando API ainda não carregou reviews — sem dados falsos */}
+        {!loading && total === 0 && (
+          <div className="bg-card border border-border rounded-xl p-10 text-center">
+            <div className="flex justify-center mb-4">
+              <GoogleIcon />
+            </div>
+            <StarRating rating={5} size="md" />
+            <p className="text-sm text-muted-foreground mt-4 mb-6">
+              Veja o que nossos clientes dizem sobre nós no Google.
+            </p>
+            <a
+              href={GOOGLE_REVIEWS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-accent text-accent-foreground text-sm font-semibold px-6 py-3 rounded-md hover:bg-accent/90 transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={scrollNext}
-              className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-              aria-label="Próximo"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Loading skeleton */}
-        {loading && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-6 animate-pulse">
-                <div className="flex gap-2 items-center mb-4">
-                  <div className="w-10 h-10 rounded-full bg-muted" />
-                  <div className="space-y-1.5 flex-1">
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                    <div className="h-2.5 bg-muted rounded w-1/3" />
-                  </div>
-                </div>
-                <div className="flex gap-1 mb-3">
-                  {Array.from({ length: 5 }).map((_, j) => <div key={j} className="w-4 h-4 rounded bg-muted" />)}
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 bg-muted rounded w-full" />
-                  <div className="h-3 bg-muted rounded w-5/6" />
-                  <div className="h-3 bg-muted rounded w-4/6" />
-                </div>
-              </div>
-            ))}
+              Ver avaliações no Google
+              <ExternalLink className="w-4 h-4" />
+            </a>
           </div>
         )}
 
-        {/* Carrossel */}
-        {!loading && (
-          <div id="google-reviews" className="overflow-hidden" ref={emblaRef}>
-            <div className="flex -ml-4">
-              {displayReviews.map((review, i) => (
-                <div
-                  key={i}
-                  className="pl-4 flex-none w-[88vw] sm:w-1/2 lg:w-1/3 min-w-0"
-                >
-                <div className="bg-card border border-border rounded-xl p-6 flex flex-col h-full">
-                  {/* Topo: autor + Google icon */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      {review.profile_photo_url ? (
-                        <img
-                          src={review.profile_photo_url}
-                          alt={review.author_name}
-                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-sm font-bold text-accent flex-shrink-0">
-                          {review.author_name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-semibold leading-tight">{review.author_name}</p>
-                        {review.relative_time_description && (
-                          <p className="text-[0.65rem] text-muted-foreground mt-0.5">{review.relative_time_description}</p>
-                        )}
-                      </div>
-                    </div>
-                    <GoogleIcon />
-                  </div>
-
-                  {/* Estrelas */}
-                  <StarRating rating={review.rating} />
-
-                  {/* Texto */}
-                  <p className="text-sm text-muted-foreground leading-relaxed mt-3 italic flex-1">
-                    "{review.text.length > 220 ? review.text.slice(0, 220) + "…" : review.text}"
-                  </p>
-                </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Dots + CTA */}
-        {!loading && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
-            {/* Dots */}
-            <div className="flex items-center gap-2">
-              {scrollSnaps.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => scrollTo(idx)}
-                  className={`rounded-full transition-all duration-300 ${
-                    idx === selectedIndex
-                      ? "w-6 h-2 bg-accent"
-                      : "w-2 h-2 bg-border hover:bg-muted-foreground"
-                  }`}
-                  aria-label={`Ir para slide ${idx + 1}`}
-                />
-              ))}
-            </div>
-
-            {/* Botão ver todas */}
+        {/* CTA ver todas — só aparece quando há reviews */}
+        {!loading && total > 0 && (
+          <div className="text-center mt-8">
             <a
               href={GOOGLE_REVIEWS_URL}
               target="_blank"

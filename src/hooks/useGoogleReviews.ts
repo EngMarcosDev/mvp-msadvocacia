@@ -9,7 +9,7 @@ export interface GoogleReview {
   relative_time_description?: string;
 }
 
-interface UseGoogleReviewsState {
+interface State {
   reviews: GoogleReview[];
   rating: number | null;
   totalRatings: number | null;
@@ -18,129 +18,101 @@ interface UseGoogleReviewsState {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GoogleMaps = any;
+type G = any;
+declare global { interface Window { google?: G; } }
 
-declare global {
-  interface Window {
-    google?: GoogleMaps;
-  }
-}
+const API_KEY  = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+const PLACE_ID = import.meta.env.VITE_GOOGLE_PLACE_ID    as string | undefined;
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-const GOOGLE_PLACE_ID = import.meta.env.VITE_GOOGLE_PLACE_ID as string | undefined;
-
-function loadGoogleMapsScript(apiKey: string): Promise<void> {
+function loadScript(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (window.google?.maps?.places) {
-      resolve();
-      return;
-    }
-
-    const existing = document.getElementById("google-maps-script");
+    if (window.google?.maps) { resolve(); return; }
+    const existing = document.getElementById("gmap-script");
     if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("Falha ao carregar Google Maps")));
+      existing.addEventListener("load",  () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Falha ao carregar Maps")));
       return;
     }
-
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Falha ao carregar Google Maps API"));
-    document.head.appendChild(script);
+    const s = document.createElement("script");
+    s.id      = "gmap-script";
+    // loading=async + nova biblioteca places
+    s.src     = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async&language=pt-BR`;
+    s.async   = true;
+    s.onload  = () => resolve();
+    s.onerror = () => reject(new Error("Erro ao carregar Google Maps API"));
+    document.head.appendChild(s);
   });
 }
 
-export function useGoogleReviews(): UseGoogleReviewsState {
-  const [state, setState] = useState<UseGoogleReviewsState>({
-    reviews: [],
-    rating: null,
-    totalRatings: null,
-    loading: true,
-    error: null,
+export function useGoogleReviews(): State {
+  const [state, setState] = useState<State>({
+    reviews: [], rating: null, totalRatings: null, loading: true, error: null,
   });
 
   useEffect(() => {
-    if (!GOOGLE_MAPS_API_KEY || !GOOGLE_PLACE_ID) {
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        error: "Chave de API ou Place ID não configurados.",
-      }));
+    if (!API_KEY || !PLACE_ID) {
+      const msg = "Env vars não encontradas no build (VITE_GOOGLE_MAPS_API_KEY / VITE_GOOGLE_PLACE_ID).";
+      console.error("[Reviews]", msg);
+      setState(s => ({ ...s, loading: false, error: msg }));
       return;
     }
 
     let cancelled = false;
 
-    async function fetchReviews() {
+    async function run() {
       try {
-        await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY!);
+        await loadScript(API_KEY!);
+        if (cancelled) return;
+
+        // Nova API: google.maps.places.Place (substitui PlacesService)
+        const maps  = window.google.maps;
+        const Place = maps.places.Place as G;
+
+        const place = new Place({ id: PLACE_ID });
+
+        await place.fetchFields({
+          fields: ["reviews", "rating", "userRatingCount"],
+        });
 
         if (cancelled) return;
 
-        const mapDiv = document.createElement("div");
-        const maps = window.google.maps;
-        const map = new maps.Map(mapDiv);
-        const service = new maps.places.PlacesService(map);
+        const raw: G[] = place.reviews ?? [];
+        const sorted: GoogleReview[] = raw
+          .filter((r: G) => r.text?.text?.trim().length > 5)
+          .sort((a: G, b: G) => {
+            const ta = a.publishTime ? new Date(a.publishTime).getTime() : 0;
+            const tb = b.publishTime ? new Date(b.publishTime).getTime() : 0;
+            return tb - ta;
+          })
+          .map((r: G) => ({
+            author_name:              r.authorAttribution?.displayName ?? "Anônimo",
+            rating:                   r.rating ?? 5,
+            text:                     r.text?.text ?? "",
+            time:                     r.publishTime ? new Date(r.publishTime).getTime() / 1000 : 0,
+            profile_photo_url:        r.authorAttribution?.photoURI ?? undefined,
+            relative_time_description: r.relativePublishTimeDescription ?? undefined,
+          }));
 
-        service.getDetails(
-          {
-            placeId: GOOGLE_PLACE_ID!,
-            fields: ["reviews", "rating", "user_ratings_total"],
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (place: any, status: string) => {
-            if (cancelled) return;
+        console.info(`[Reviews] ${sorted.length} avaliação(ões) carregada(s).`);
 
-            if (status === maps.places.PlacesServiceStatus.OK && place) {
-              const allReviews: GoogleReview[] = (place.reviews ?? []);
-              const sorted = allReviews
-                .filter((r) => r.text && r.text.trim().length > 10)
-                .sort((a, b) => b.time - a.time)
-                .slice(0, 6);
-
-              setState({
-                reviews: sorted.map((r) => ({
-                  author_name: r.author_name,
-                  rating: r.rating,
-                  text: r.text,
-                  time: r.time,
-                  profile_photo_url: r.profile_photo_url,
-                  relative_time_description: r.relative_time_description,
-                })),
-                rating: place.rating ?? null,
-                totalRatings: place.user_ratings_total ?? null,
-                loading: false,
-                error: null,
-              });
-            } else {
-              setState((prev) => ({
-                ...prev,
-                loading: false,
-                error: `Erro ao buscar avaliações: ${status}`,
-              }));
-            }
-          }
-        );
+        setState({
+          reviews:      sorted,
+          rating:       place.rating       ?? null,
+          totalRatings: place.userRatingCount ?? null,
+          loading:      false,
+          error:        null,
+        });
       } catch (err) {
         if (!cancelled) {
-          setState((prev) => ({
-            ...prev,
-            loading: false,
-            error: err instanceof Error ? err.message : "Erro desconhecido",
-          }));
+          const msg = err instanceof Error ? err.message : "Erro desconhecido";
+          console.error("[Reviews]", msg);
+          setState(s => ({ ...s, loading: false, error: msg }));
         }
       }
     }
 
-    fetchReviews();
-
-    return () => {
-      cancelled = true;
-    };
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   return state;
