@@ -22,34 +22,75 @@ const buildWhatsAppLink = (message: string) => {
 
 const WHATSAPP_LINK = buildWhatsAppLink(WHATSAPP_MESSAGE);
 
-// ─── AVALIAÇÕES REAIS (atualize aqui quando chegar novo comentário) ───────────
+// ─── AVALIAÇÕES REAIS ─────────────────────────────────────────────────────────
+// Para adicionar novo comentário: copie um bloco abaixo e preencha com os dados.
 const REAL_REVIEWS = [
   {
-    author_name: "Anônimo",
+    author_name: "Islailma Teles",
+    rating: 5,
+    text: "Minha experiência com o escritório de Dr Márcio Silva foi totalmente positivo, um profissional muito qualificado, prestativo com os clientes, dedicado ao máximo em cada causa, super recomendo os serviços de Dr Márcio Silva.",
+    relative_time_description: "há 1 ano",
+    profile_photo_url: undefined as string | undefined,
+    time: 8,
+  },
+  {
+    author_name: "Elizama Nunes",
+    rating: 5,
+    text: "Fui bem atendida. O Dr. Márcio é um excelente profissional, me orientou, me ajudou. Obtive um ótimo resultado através do seu trabalho.",
+    relative_time_description: "há 1 ano",
+    profile_photo_url: undefined as string | undefined,
+    time: 7,
+  },
+  {
+    author_name: "Jaine Hermes",
+    rating: 5,
+    text: "Um advogado prestativo! Com poucas palavras rs Mas muito eficaz.",
+    relative_time_description: "há 1 ano",
+    profile_photo_url: undefined as string | undefined,
+    time: 6,
+  },
+  {
+    author_name: "André Sobral",
     rating: 5,
     text: "Ótimo profissional de grande competência deus abençoe",
+    relative_time_description: "há 1 ano",
+    profile_photo_url: undefined as string | undefined,
+    time: 5,
+  },
+  {
+    author_name: "Marcos Santos",
+    rating: 5,
+    text: "Excelente profissional.",
     relative_time_description: "recentemente",
+    profile_photo_url: undefined as string | undefined,
+    time: 9,
+  },
+  {
+    author_name: "Renata Alves",
+    rating: 5,
+    text: "Escritório com profissionais altamente qualificados. Atendimento com muita presteza e atenção, super RECOMENDO!!!",
+    relative_time_description: "há 3 anos",
     profile_photo_url: undefined as string | undefined,
     time: 3,
   },
   {
-    author_name: "Anônimo",
+    author_name: "Roseane Medeiros",
     rating: 5,
-    text: "Um excelente advogado super recomendo top",
-    relative_time_description: "recentemente",
+    text: "Deixando aqui minha satisfação ao serviço excelente e responsável do profissional Dr. Marcio. Recomendo.",
+    relative_time_description: "há 3 anos",
     profile_photo_url: undefined as string | undefined,
     time: 2,
   },
   {
-    author_name: "Anônimo",
+    author_name: "Joel Alves",
     rating: 5,
-    text: "Escritório com profissionais altamente qualificados.",
-    relative_time_description: "recentemente",
+    text: "Eu já precisei dos serviços da MS Advocacia e fui muito bem atendido.",
+    relative_time_description: "há 3 anos",
     profile_photo_url: undefined as string | undefined,
     time: 1,
   },
 ];
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Para adicionar: { author_name, rating, text, relative_time_description } ─
 
 const GOOGLE_PLACE_ID = import.meta.env.VITE_GOOGLE_PLACE_ID as string | undefined;
 const GOOGLE_REVIEWS_URL = GOOGLE_PLACE_ID
@@ -104,10 +145,10 @@ const GoogleIcon = () => (
 /* ── Reviews Fade Carousel ── */
 const ReviewsSection = () => {
   // Usa REAL_REVIEWS diretamente — sem API, sem custo
-  const reviews     = REAL_REVIEWS;
-  const rating      = 5;
-  const totalRatings = REAL_REVIEWS.length;
-  const loading     = false;
+  const reviews      = REAL_REVIEWS;
+  const rating       = 5.0;
+  const totalRatings = 25; // total real de avaliações no Google
+  const loading      = false;
 
   const total = reviews.length;
   const [current, setCurrent] = useState(0);
