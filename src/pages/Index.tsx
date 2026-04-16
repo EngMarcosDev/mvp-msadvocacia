@@ -1,5 +1,6 @@
 import { forwardRef, type SVGProps } from "react";
-import { BookOpen, Mail, MapPin, Clock, Shield, Users, ChevronRight, Gavel, FileText, AlertTriangle, Briefcase, Scale, UserCheck, Building, Siren, GraduationCap, Award, BadgeCheck, Star } from "lucide-react";
+import { BookOpen, Mail, MapPin, Clock, Shield, Users, ChevronRight, Gavel, FileText, AlertTriangle, Briefcase, Scale, UserCheck, Building, Siren, GraduationCap, Award, BadgeCheck, Star, ExternalLink } from "lucide-react";
+import { useGoogleReviews } from "@/hooks/useGoogleReviews";
 
 import logoTransparente from "@/assets/logo-transparente.png";
 import marcioImg from "@/assets/marcio.jpeg";
@@ -39,6 +40,11 @@ const MOCK_GOOGLE_REVIEWS = [
   },
 ];
 
+const GOOGLE_PLACE_ID = import.meta.env.VITE_GOOGLE_PLACE_ID as string | undefined;
+const GOOGLE_REVIEWS_URL = GOOGLE_PLACE_ID
+  ? `https://search.google.com/local/reviews?placeid=${GOOGLE_PLACE_ID}`
+  : "https://www.google.com/search?q=MS+Advocacia+Lajedo+PE";
+
 const openWhatsApp = (message = WHATSAPP_MESSAGE) => {
   if (typeof window === "undefined") {
     return;
@@ -59,6 +65,135 @@ const WhatsAppIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>(({ class
 ));
 
 WhatsAppIcon.displayName = "WhatsAppIcon";
+
+const StarRating = ({ rating, size = "sm" }: { rating: number; size?: "sm" | "md" }) => {
+  const starSize = size === "sm" ? "w-4 h-4" : "w-5 h-5";
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={`${starSize} ${i < Math.round(rating) ? "fill-accent text-accent" : "fill-muted text-muted"}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+const ReviewsSection = () => {
+  const { reviews, rating, totalRatings, loading, error } = useGoogleReviews();
+  const hasApiReviews = !loading && !error && reviews.length > 0;
+  const showMock = !hasApiReviews;
+
+  return (
+    <section className="py-16 bg-background">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-10">
+          <div className="w-12 h-px bg-accent mx-auto mb-6" />
+          <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+            O que nossos clientes dizem
+          </h2>
+
+          {/* Resumo de avaliação quando disponível */}
+          {rating && totalRatings && (
+            <div className="flex items-center justify-center gap-3 mt-4">
+              <StarRating rating={rating} size="md" />
+              <span className="text-lg font-bold">{rating.toFixed(1)}</span>
+              <span className="text-sm text-muted-foreground">({totalRatings} avaliações no Google)</span>
+            </div>
+          )}
+        </div>
+
+        {/* Loading skeleton */}
+        {loading && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-lg p-6 animate-pulse">
+                <div className="flex gap-1 mb-3">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <div key={j} className="w-4 h-4 rounded bg-muted" />
+                  ))}
+                </div>
+                <div className="space-y-2 mb-4">
+                  <div className="h-3 bg-muted rounded w-full" />
+                  <div className="h-3 bg-muted rounded w-5/6" />
+                  <div className="h-3 bg-muted rounded w-4/6" />
+                </div>
+                <div className="h-3 bg-muted rounded w-1/3" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Avaliações reais do Google */}
+        {hasApiReviews && (
+          <div id="google-reviews" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {reviews.map((review, i) => (
+              <div key={i} className="bg-card border border-border rounded-lg p-6 flex flex-col">
+                <div className="flex items-center gap-3 mb-3">
+                  {review.profile_photo_url ? (
+                    <img
+                      src={review.profile_photo_url}
+                      alt={review.author_name}
+                      className="w-9 h-9 rounded-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground">
+                      {review.author_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold leading-tight">{review.author_name}</p>
+                    {review.relative_time_description && (
+                      <p className="text-[0.65rem] text-muted-foreground">{review.relative_time_description}</p>
+                    )}
+                  </div>
+                </div>
+                <StarRating rating={review.rating} />
+                <p className="text-sm text-muted-foreground leading-relaxed mt-3 italic flex-1">
+                  "{review.text.length > 200 ? review.text.slice(0, 200) + "…" : review.text}"
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Fallback: dados mock quando API não está configurada */}
+        {showMock && !loading && (
+          <div id="google-reviews" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {MOCK_GOOGLE_REVIEWS.map((review, i) => (
+              <div key={i} className="bg-card border border-border rounded-lg p-6">
+                <div className="flex gap-1 mb-3">
+                  {Array.from({ length: review.estrelas }).map((_, j) => (
+                    <Star key={j} className="w-4 h-4 fill-accent text-accent" />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4 italic">
+                  "{review.texto}"
+                </p>
+                <p className="text-xs font-semibold">{review.nome}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Botão para ver todas as avaliações no Google */}
+        <div className="text-center mt-10">
+          <a
+            href={GOOGLE_REVIEWS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 border border-border text-sm font-medium px-6 py-3 rounded-md hover:bg-secondary transition-colors"
+          >
+            Ver todas as avaliações no Google
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const Index = () => {
   return (
@@ -436,31 +571,7 @@ const Index = () => {
       </section>
 
       {/* ============ AVALIAÇÕES ============ */}
-      <section className="py-16 bg-background">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-10">
-            <div className="w-12 h-px bg-accent mx-auto mb-6" />
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-              O que nossos clientes dizem
-            </h2>
-          </div>
-          <div id="google-reviews" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {MOCK_GOOGLE_REVIEWS.map((review, i) => (
-              <div key={i} className="bg-card border border-border rounded-lg p-6">
-                <div className="flex gap-1 mb-3">
-                  {Array.from({ length: review.estrelas }).map((_, j) => (
-                    <Star key={j} className="w-4 h-4 fill-accent text-accent" />
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 italic">
-                  "{review.texto}"
-                </p>
-                <p className="text-xs font-semibold">{review.nome}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <ReviewsSection />
 
       {/* ============ CONTATO / FOOTER ============ */}
       <section id="contato" className="py-24 bg-primary text-primary-foreground">
